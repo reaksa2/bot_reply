@@ -32,40 +32,42 @@ object ApiClient {
     // Requires the person to be signed in with Google (via Firebase Auth) —
     // the Worker verifies their identity before saving the bot registration.
     fun registerBot(botToken: String): RegisterResult {
-        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-            ?: return RegisterResult(false, null, "Not signed in")
-
-        val idTokenTask = user.getIdToken(true)
-        val tokenResult = com.google.android.gms.tasks.Tasks.await(idTokenTask)
-        val idToken = tokenResult.token ?: return RegisterResult(false, null, "Could not get auth token")
-
-        val url = URL("${WorkerConfig.WORKER_BASE_URL}/register")
-        val conn = url.openConnection() as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.doOutput = true
-        conn.setRequestProperty("Authorization", "Bearer $idToken")
-        conn.setRequestProperty("Content-Type", "application/json")
-
-        val body = org.json.JSONObject().put("botToken", botToken).toString()
-        conn.outputStream.use { it.write(body.toByteArray()) }
-
-        val code = conn.responseCode
-        val responseText = if (code in 200..299) {
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } else {
-            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-        }
-        conn.disconnect()
-
         return try {
+            val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                ?: return RegisterResult(false, null, "Not signed in")
+
+            val idTokenTask = user.getIdToken(true)
+            val tokenResult = com.google.android.gms.tasks.Tasks.await(idTokenTask)
+            val idToken = tokenResult.token ?: return RegisterResult(false, null, "Could not get auth token")
+
+            val url = URL("${WorkerConfig.WORKER_BASE_URL}/register")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.connectTimeout = 15000
+            conn.readTimeout = 15000
+            conn.setRequestProperty("Authorization", "Bearer $idToken")
+            conn.setRequestProperty("Content-Type", "application/json")
+
+            val body = org.json.JSONObject().put("botToken", botToken).toString()
+            conn.outputStream.use { it.write(body.toByteArray()) }
+
+            val code = conn.responseCode
+            val responseText = if (code in 200..299) {
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "HTTP $code with no error body"
+            }
+            conn.disconnect()
+
             val json = org.json.JSONObject(responseText)
             if (json.optBoolean("ok")) {
                 RegisterResult(true, json.getString("botId"), null)
             } else {
-                RegisterResult(false, null, json.optString("error", "Registration failed"))
+                RegisterResult(false, null, json.optString("error", "Registration failed (HTTP $code)"))
             }
         } catch (e: Exception) {
-            RegisterResult(false, null, "Unexpected response: $responseText")
+            RegisterResult(false, null, "Exception: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
