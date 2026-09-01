@@ -1,6 +1,7 @@
 package com.example.manualreply
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.GradientDrawable
 import android.media.MediaRecorder
@@ -97,8 +98,20 @@ class ThreadActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.nameText).text = displayName
         findViewById<ImageButton>(R.id.backButton).setOnClickListener { finish() }
 
+        val openProfile: () -> Unit = {
+            val profileIntent = Intent(this, ProfileActivity::class.java)
+            profileIntent.putExtra("userId", userId)
+            profileIntent.putExtra("username", username)
+            profileIntent.putExtra("isGroup", isGroup)
+            profileIntent.putExtra("groupTitle", chatTitle)
+            startActivity(profileIntent)
+        }
+        findViewById<TextView>(R.id.nameText).setOnClickListener { openProfile() }
+
         val initials = findViewById<TextView>(R.id.initialsText)
         val avatar = findViewById<CircleImageView>(R.id.avatarImage)
+        initials.setOnClickListener { openProfile() }
+        avatar.setOnClickListener { openProfile() }
 
         if (isGroup) {
             initials.text = displayName.take(1).uppercase()

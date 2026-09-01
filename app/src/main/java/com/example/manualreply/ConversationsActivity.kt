@@ -1,10 +1,15 @@
 package com.example.manualreply
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -24,9 +29,27 @@ class ConversationsActivity : AppCompatActivity() {
     private var listenerRegistration: ListenerRegistration? = null
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
 
+    // remembers the latest timestamp we've already seen per chat, so we only
+    // notify for messages that arrive AFTER the screen first loads — not the
+    // whole existing history on first open
+    private val lastSeenTimestamps = HashMap<String, Long>()
+    private var isFirstSnapshot = true
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* if denied, notifications simply won't show — handled gracefully in NotificationHelper */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_conversations)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         recyclerView = findViewById(R.id.recyclerView)
         swipeRefresh = findViewById(R.id.swipeRefresh)
@@ -75,6 +98,7 @@ class ConversationsActivity : AppCompatActivity() {
 
     private fun attachListener() {
         listenerRegistration?.remove()
+        isFirstSnapshot = true
 
         val account = AccountManager.getActiveAccount(this) ?: return
 
@@ -101,6 +125,39 @@ class ConversationsActivity : AppCompatActivity() {
                         lastTimestamp = if (ts != null) dateFormat.format(ts) else ""
                     )
                 }
+
+                if (!isFirstSnapshot) {
+                    for (doc in snapshot.documents) {
+                        val ts = doc.getDate("lastTimestamp")?.time ?: continue
+                        val direction = doc.getString("lastDirection") ?: ""
+                        val previouslySeen = lastSeenTimestamps[doc.id]
+
+                        if (direction == "IN" && (previouslySeen == null || ts > previouslySeen)) {
+                            val chatTitle = doc.getString("chatTitle") ?: ""
+                            val username = doc.getString("username") ?: ""
+                            val isGroup = doc.getString("chatType") in listOf("group", "supergroup")
+                            val displayName = if (isGroup && chatTitle.isNotBlank()) chatTitle else "@$username"
+
+                            NotificationHelper.showNewMessage(
+                                this,
+                                displayName,
+                                doc.getString("lastMessage") ?: "",
+                                doc.id,
+                                account.botId,
+                                doc.getString("chatType") ?: "",
+                                chatTitle,
+                                doc.getString("userId") ?: "",
+                                username
+                            )
+                        }
+                    }
+                }
+
+                snapshot.documents.forEach { doc ->
+                    val ts = doc.getDate("lastTimestamp")?.time
+                    if (ts != null) lastSeenTimestamps[doc.id] = ts
+                }
+                isFirstSnapshot = false
 
                 adapter.updateItems(conversations)
                 emptyText.visibility = if (conversations.isEmpty()) View.VISIBLE else View.GONE

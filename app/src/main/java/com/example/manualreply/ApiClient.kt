@@ -73,6 +73,31 @@ object ApiClient {
 
     data class RegisterResult(val success: Boolean, val botId: String?, val error: String?)
 
+    data class UserProfile(val firstName: String, val lastName: String, val bio: String)
+
+    // ---- Fetch a person's name/bio via Telegram's getChat API ----
+    // Works for anyone the bot has previously exchanged messages with.
+    fun fetchUserProfile(userId: String): UserProfile? {
+        if (userId.isBlank()) return null
+        val account = AccountManager.getActiveAccount(appContext) ?: return null
+
+        return try {
+            val url = "https://api.telegram.org/bot${account.botToken}/getChat?chat_id=$userId"
+            val response = httpGet(url)
+            val json = org.json.JSONObject(response)
+            if (!json.optBoolean("ok")) return null
+
+            val result = json.getJSONObject("result")
+            UserProfile(
+                firstName = result.optString("first_name", ""),
+                lastName = result.optString("last_name", ""),
+                bio = result.optString("bio", "")
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     // ---- Send a message AS THE BOT directly via Telegram Bot API ----
     fun sendTelegramReply(chatId: String, text: String): Boolean {
         val account = requireActiveAccount()
