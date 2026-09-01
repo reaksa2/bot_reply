@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "573538913154",
+    "project_id": "bot-chat-efb35",
+    "storage_bucket": "bot-chat-efb35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:573538913154:android:994acffbb430da31dc1d9b",
+        "android_client_info": {
+          "package_name": "com.example.manualreply"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "573538913154-03i1mdvk0muqlcbpdigl3im9fgv4lh9f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCr3gINrOrfQ77X-7-B0GJrkllr6c21l0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "573538913154-03i1mdvk0muqlcbpdigl3im9fgv4lh9f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
