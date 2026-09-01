@@ -167,19 +167,24 @@ class ThreadAdapter(
             "photo" -> {
                 if (item.mediaUrl.isNotBlank()) {
                     photoView.visibility = View.VISIBLE
-                    messageText.visibility = View.GONE
                     Glide.with(photoView.context).load(item.mediaUrl).into(photoView)
                     photoView.setOnClickListener {
                         val intent = android.content.Intent(photoView.context, ImageViewerActivity::class.java)
                         intent.putExtra("imageUrl", item.mediaUrl)
                         photoView.context.startActivity(intent)
                     }
+                    // show the real caption below the image if one was sent, otherwise hide it
+                    if (item.text.isNotBlank()) {
+                        messageText.visibility = View.VISIBLE
+                        messageText.text = item.text
+                    } else {
+                        messageText.visibility = View.GONE
+                    }
                 }
             }
             "video" -> {
                 if (item.mediaUrl.isNotBlank()) {
                     videoContainer.visibility = View.VISIBLE
-                    messageText.visibility = View.GONE
                     videoContainer.setOnClickListener {
                         try {
                             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
@@ -189,6 +194,12 @@ class ThreadAdapter(
                         } catch (e: Exception) {
                             // no video player app available — silently ignored
                         }
+                    }
+                    if (item.text.isNotBlank()) {
+                        messageText.visibility = View.VISIBLE
+                        messageText.text = item.text
+                    } else {
+                        messageText.visibility = View.GONE
                     }
                 }
             }
